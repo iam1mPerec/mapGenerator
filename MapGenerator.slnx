@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="MapGeneration.vcxproj" Id="7ef24e59-e28c-4fe9-b486-904fc19bfe7b" />
+</Solution>

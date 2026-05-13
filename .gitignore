@@ -1,0 +1,49 @@
+# Visual Studio temporary files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build results
+Debug/
+Release/
+x64/
+x86/
+build/
+out/
+
+# Compiled objects
+*.obj
+*.o
+*.pch
+*.pdb
+*.ilk
+*.idb
+*.exe
+*.dll
+*.lib
+*.exp
+*.ppm
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Logs
+*.log
+
+# IntelliSense
+ipch/
+
+# Test results
+TestResults/
+
+# NuGet
+packages/
+
+# Windows thumbnail/cache
+Thumbs.db
+Desktop.ini
