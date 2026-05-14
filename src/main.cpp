@@ -5,8 +5,8 @@
 #include <cstdlib>
 #include <time.h>
 
-#define WIDTH 800
-#define HEIGHT 600
+#define WIDTH 1600
+#define HEIGHT 1200
 #define SEEDS_COUNT 50
 
 #define OUTPUT_FILE_PATH "output.ppm"
@@ -43,10 +43,10 @@ static Color32 image[HEIGHT][WIDTH];
 static Seed seeds[SEEDS_COUNT];
 static int owner[HEIGHT][WIDTH];
 static Color32 palette[] = {
-	GROVE_BOX_COLOR_BRIGHT_GRAY,
-	GROVE_BOX_COLOR_BRIGHT_GREEN,
-	GROVE_BOX_COLOR_BRIGHT_YELLOW,
-	GROVE_BOX_COLOR_BRIGHT_PURPLE,
+	//GROVE_BOX_COLOR_BRIGHT_GRAY,
+	//GROVE_BOX_COLOR_BRIGHT_GREEN,
+	//GROVE_BOX_COLOR_BRIGHT_YELLOW,
+	//GROVE_BOX_COLOR_BRIGHT_PURPLE,
 	GROVE_BOX_COLOR_BRIGHT_BLUE
 };
 #define palette_count (sizeof(palette)/sizeof(palette[0]))
@@ -172,6 +172,7 @@ eBiome getBiomeType(Color32 color) {
 	if (color == GROVE_BOX_COLOR_BRIGHT_YELLOW) return eBiome::desert;
 	if (color == GROVE_BOX_COLOR_BRIGHT_PURPLE) return eBiome::swamp;
 	if (color == GROVE_BOX_COLOR_BRIGHT_BLUE) return eBiome::rock;
+	return eBiome::ocean;
 }
 
 void render_ocean() {
