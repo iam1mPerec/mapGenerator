@@ -13,13 +13,72 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="utils">
+      <UniqueIdentifier>{c61c840a-a0e8-4883-ad10-c49893d175de}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="nodesoup">
+      <UniqueIdentifier>{19f61c75-0d59-4c89-986c-df425601b311}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="voronoi">
+      <UniqueIdentifier>{06611aed-62c0-4675-af32-15f7e2ef9c6c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="eBiome.hpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nodesoup\algebra.cpp">
+      <Filter>nodesoup</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nodesoup\fruchterman_reingold.cpp">
+      <Filter>nodesoup</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nodesoup\kamada_kawai.cpp">
+      <Filter>nodesoup</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nodesoup\layout.cpp">
+      <Filter>nodesoup</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nodesoup\nodesoup.cpp">
+      <Filter>nodesoup</Filter>
+    </ClCompile>
+    <ClCompile Include="src\voronoi.cpp">
+      <Filter>voronoi</Filter>
+    </ClCompile>
+    <ClCompile Include="src\node.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\colors.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nodesoup\algebra.hpp">
+      <Filter>nodesoup</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nodesoup\fruchterman_reingold.hpp">
+      <Filter>nodesoup</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nodesoup\kamada_kawai.hpp">
+      <Filter>nodesoup</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nodesoup\layout.hpp">
+      <Filter>nodesoup</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nodesoup\nodesoup.hpp">
+      <Filter>nodesoup</Filter>
+    </ClInclude>
+    <ClInclude Include="src\voronoi.hpp">
+      <Filter>voronoi</Filter>
+    </ClInclude>
+    <ClInclude Include="src\node.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

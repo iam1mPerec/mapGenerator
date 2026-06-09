@@ -128,10 +128,28 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="eBiome.hpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\node.cpp" />
+    <ClCompile Include="src\nodesoup\algebra.cpp" />
+    <ClCompile Include="src\nodesoup\fruchterman_reingold.cpp" />
+    <ClCompile Include="src\nodesoup\kamada_kawai.cpp" />
+    <ClCompile Include="src\nodesoup\layout.cpp" />
+    <ClCompile Include="src\nodesoup\nodesoup.cpp" />
+    <ClCompile Include="src\voronoi.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\colors.hpp" />
+    <ClInclude Include="src\node.hpp" />
+    <ClInclude Include="src\nodesoup\algebra.hpp" />
+    <ClInclude Include="src\nodesoup\fruchterman_reingold.hpp" />
+    <ClInclude Include="src\nodesoup\kamada_kawai.hpp" />
+    <ClInclude Include="src\nodesoup\layout.hpp" />
+    <ClInclude Include="src\nodesoup\nodesoup.hpp" />
+    <ClInclude Include="src\voronoi.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

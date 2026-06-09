@@ -1,202 +1,174 @@
 #include <iostream>
-#include <cstdio>
 #include <cassert>
-#include <cstring>
-#include <cstdlib>
-#include <time.h>
+#include "voronoi.hpp"
+#include "node.hpp"
+#include "nodesoup/nodesoup.hpp"
+#include <algorithm>
+#include <chrono>
+#include <vector>
 
-#define WIDTH 1600
-#define HEIGHT 1200
-#define SEEDS_COUNT 50
 
-#define OUTPUT_FILE_PATH "output.ppm"
+using namespace nodesoup;
 
-#define GROVE_BOX_COLOR_BRIGHT_GRAY		0xFF181818
-#define GROVE_BOX_COLOR_BRIGHT_GREEN	0xFF26BBB8
-#define GROVE_BOX_COLOR_BRIGHT_YELLOW	0xFF2FBDFA
-#define GROVE_BOX_COLOR_BRIGHT_BLUE		0xFF98A583
-#define GROVE_BOX_COLOR_BRIGHT_PURPLE	0xFF9B86D3
-#define GROVE_BOX_COLOR_BRIGHT_AQUA		0xFFDCDC8D
+using std::string;
+using std::vector;
+using std::cout;
+using std::cerr;
 
-#define COLOR_BLACK 0xFF000000
-#define COLOR_WHITE 0xFFFFFFFF
-#define SEED_MARKER_RADIUS 5
+constexpr auto WIDTH = 1600;
+constexpr auto HEIGHT = 1200;
+constexpr auto SEEDS_COUNT = 50;
 
-typedef int Color32;
+constexpr auto OUTPUT_FILE_PATH = "output.ppm";
+constexpr auto SEED_MARKER_RADIUS = 5;
 
-enum eBiome {
-	ocean,
-	desert,
-	swamp,
-	forest,
-	rock,
-	ruin
-};
-
-struct Seed {
-	int x, y = 0;
-	bool touches_border = false;
-	eBiome type = ocean;
-};
-
-static Color32 image[HEIGHT][WIDTH];
-static Seed seeds[SEEDS_COUNT];
-static int owner[HEIGHT][WIDTH];
-static Color32 palette[] = {
-	//GROVE_BOX_COLOR_BRIGHT_GRAY,
-	//GROVE_BOX_COLOR_BRIGHT_GREEN,
-	//GROVE_BOX_COLOR_BRIGHT_YELLOW,
-	//GROVE_BOX_COLOR_BRIGHT_PURPLE,
-	GROVE_BOX_COLOR_BRIGHT_BLUE
-};
-#define palette_count (sizeof(palette)/sizeof(palette[0]))
-
-void fill_image(Color32 color) {
-	for (size_t y = 0; y < HEIGHT; ++y) {
-		for (size_t x = 0; x < WIDTH; ++x) {
-			image[y][x] = color;
-		}
-	}
-}
-
-void save_image_as_ppm(const char* file_path) 
+static void save_image_as_ppm(
+	const char* file_path,
+	int width,
+	int height,
+	const std::vector<std::vector<int>>& image)
 {
 	FILE* f = nullptr;
 	fopen_s(&f, file_path, "wb");
-	if (f == NULL) {
+
+	if (!f)
 		return;
-	}
-	else {
-		fprintf(f, "P6\n%d %d 255\n", WIDTH, HEIGHT);
-	}
-	for (size_t y = 0; y < HEIGHT; ++y)
+
+	fprintf(f, "P6\n%d %d\n255\n", width, height);
+
+	for (int y = 0; y < height; ++y)
 	{
-		for (size_t x = 0; x < WIDTH; ++x) {
-			uint32_t pixel = image[y][x];
-			uint8_t bytes[3] = {
-				(pixel & 0x0000FF) >> 8 * 0,
-				(pixel & 0x00FF00) >> 8 * 1,
-				(pixel & 0xFF0000) >> 8 * 2,
-			};
-			fwrite(bytes, sizeof(bytes), 1, f);
+		for (int x = 0; x < width; ++x)
+		{
+			uint32_t pixel = static_cast<uint32_t>(image[y][x]);
+
+			uint8_t r = (pixel >> 0) & 0xFF;
+			uint8_t g = (pixel >> 8) & 0xFF;
+			uint8_t b = (pixel >> 16) & 0xFF;
+
+			uint8_t bytes[3] = { r, g, b };
+
+			fwrite(bytes, 1, 3, f);
 			assert(!ferror(f));
 		}
 	}
-	int ret = fclose(f);
-	assert(ret == 0);
+
+	fclose(f);
 }
 
-void generate_random_seeds() {
-	for (size_t i = 0; i < SEEDS_COUNT; i++)
-	{
-		seeds[i].x = rand() % WIDTH;
-		seeds[i].y = rand() % HEIGHT;
-	}
+static void draw_line(vector<vector<int>>& image, int x0, int y0, int x1, int y1, int width, int height, uint32_t color) {
+    int dx = abs(x1 - x0);
+    int dy = abs(y1 - y0);
+    int sx = (x0 < x1) ? 1 : -1;
+    int sy = (y0 < y1) ? 1 : -1;
+    int err = dx - dy;
+
+    while (true) {
+        if (x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
+            image[y0][x0] = color;
+        }
+
+        if (x0 == x1 && y0 == y1) break;
+
+        int e2 = 2 * err;
+        if (e2 > -dy) err -= dy, x0 += sx;
+        if (e2 < dx) err += dx, y0 += sy;
+    }
 }
 
-int sqr_dist(int x1, int y1, int x2, int y2) {
-	int dx = x1 - x2;
-	int dy = y1 - y2;
-	return dx * dx + dy * dy;
+static void draw_circle(vector<vector<int>>& image, int cx, int cy, int radius, int width, int height, uint32_t color) {
+    for (int y = -radius; y <= radius; y++) {
+        for (int x = -radius; x <= radius; x++) {
+            if (x * x + y * y <= radius * radius) {
+                int px = cx + x;
+                int py = cy + y;
+
+                if (px >= 0 && px < width && py >= 0 && py < height) {
+                    image[py][px] = color;
+                }
+            }
+        }
+    }
 }
 
-void fill_circle(int cx, int cy, int radius, Color32 color) {
-	int x0 = cx - radius;
-	int y0 = cy - radius;
-	int x1 = cx + radius;
-	int y1 = cy + radius;
+static void write_to_ppm(adj_list_t& g, vector<Point2D>& positions, vector<double>& radiuses, unsigned int width, unsigned int height, const char* filename) {
+    // Create image buffer with packed RGB values (0xBBGGRR format)
+    vector<vector<int>> image(height, vector<int>(width, 0xFFFFFF)); // white background
 
-	for (int x = x0; x <= x1; ++x) {
-		if (0 <= x && x < WIDTH)
-		{
-			for (int y = y0; y <= y1; ++y) {
-				if (0 <= y && y < HEIGHT) {
-					if (sqr_dist(cx, cy, x, y) <= radius * radius) {
-						image[y][x] = color;
-					}
-				}
-				
-			}
-		}
-	}
+    // shift origin to center
+    for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
+        positions[v_id].x += width / 2.0;
+        positions[v_id].y += height / 2.0;
+    }
+
+    // Draw edges (black = 0x000000)
+    for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
+        Point2D v_pos = positions[v_id];
+
+        for (auto adj_id : g[v_id]) {
+            if (adj_id < v_id) continue;
+
+            Point2D adj_pos = positions[adj_id];
+            draw_line(image, (int)v_pos.x, (int)v_pos.y, (int)adj_pos.x, (int)adj_pos.y, width, height, 0x000000);
+        }
+    }
+
+    // Draw vertices (black = 0x000000)
+    for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
+        Point2D v_pos = positions[v_id];
+        draw_circle(image, (int)v_pos.x, (int)v_pos.y, (int)radiuses[v_id], width, height, 0x000000);
+    }
+
+    save_image_as_ppm(filename, width, height, image);
 }
 
-void render_seed_markers() {
-	for (size_t i = 0; i < SEEDS_COUNT; ++i) {
-		fill_circle(seeds[i].x, seeds[i].y, SEED_MARKER_RADIUS, COLOR_BLACK);
-	}
-}
+static void adj_list_to_ppm(
+    adj_list_t& g,
+    const char* ppm_filename,
+    unsigned int width,
+    unsigned int height,
+    double k,
+    double energy_threshold) {
 
-void render_voronoi() {
-	for (int y = 0; y < HEIGHT; ++y) {
-		for (int x = 0; x < WIDTH; ++x) {
+    vector<Point2D> positions;
+    vector<double> radiuses = size_radiuses(g);
 
-			int best_seed = 0;
+    std::chrono::time_point<std::chrono::system_clock> start, end;
+    cout << "Laying out graph with Kamada-Kawai...\n";
 
-			int best_dist = sqr_dist(
-				seeds[0].x,
-				seeds[0].y,
-				x, y
-			);
+    if (k == -1.0) {
+        k = 300.0;
+    }
 
-			for (int i = 1; i < SEEDS_COUNT; ++i) {
+    start = std::chrono::system_clock::now();
+    positions = kamada_kawai(g, width, height, k, energy_threshold);
+    end = std::chrono::system_clock::now();
 
-				int d = sqr_dist(
-					seeds[i].x,
-					seeds[i].y,
-					x, y
-				);
+    write_to_ppm(g, positions, radiuses, width, height, ppm_filename);
 
-				if (d < best_dist) {
-					best_dist = d;
-					best_seed = i;
-				}
-			}
-
-			owner[y][x] = best_seed;
-			image[y][x] = palette[best_seed % palette_count];
-
-			// detect border-touching seeds
-			if (x == 0 || x == WIDTH - 1 ||
-				y == 0 || y == HEIGHT - 1) {
-
-				seeds[best_seed].touches_border = true;
-			}
-		}
-	}
-}
-
-eBiome getBiomeType(Color32 color) {
-	if (color == GROVE_BOX_COLOR_BRIGHT_GRAY) return eBiome::ruin;
-	if (color == GROVE_BOX_COLOR_BRIGHT_GREEN) return eBiome::forest;
-	if (color == GROVE_BOX_COLOR_BRIGHT_YELLOW) return eBiome::desert;
-	if (color == GROVE_BOX_COLOR_BRIGHT_PURPLE) return eBiome::swamp;
-	if (color == GROVE_BOX_COLOR_BRIGHT_BLUE) return eBiome::rock;
-	return eBiome::ocean;
-}
-
-void render_ocean() {
-	for (int y = 0; y < HEIGHT; ++y) {
-		for (int x = 0; x < WIDTH; ++x) {
-
-			int seed = owner[y][x];
-
-			if (seeds[seed].touches_border) {
-				image[y][x] = GROVE_BOX_COLOR_BRIGHT_AQUA;
-				seeds[seed].type = eBiome::ocean;
-			}
-			else {
-				seeds[seed].type = getBiomeType(image[y][x]);
-			}
-		}
-	}
+    unsigned int ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    cout << "Layout computed in " << ms << "ms\n";
 }
 
 int main() {
-	srand(time(NULL));
-	generate_random_seeds();
-	render_voronoi();
-	render_ocean();
-	render_seed_markers();
-	save_image_as_ppm((OUTPUT_FILE_PATH));
+	node root("Root", 0);
+
+    root["A"].bulkPopulate(1, 5);
+    root["A"].bulkPopulate(2, 8);
+    root["A"].bulkPopulate(3, 10);
+    root["A"].bulkPopulate(4, 22);
+    root["A"].bulkPopulate(5, 32);
+    root["A"].bulkPopulate(6, 80);
+
+	std::cout << "items at Level 2: " << root.getNodesAtLevel(2).size() << std::endl;
+
+	root.print();
+
+    auto graph = root.buildGraph();
+
+    adj_list_to_ppm(graph, "output.ppm", WIDTH, HEIGHT, 300.0, 1e-2);
+
+	//Voronoi voronoi(WIDTH, HEIGHT, SEEDS_COUNT, SEED_MARKER_RADIUS);
+	//voronoi.generate();
+	//save_image_as_ppm(OUTPUT_FILE_PATH, voronoi.getWidth(), voronoi.getHeight(), voronoi.getImage());
 }
