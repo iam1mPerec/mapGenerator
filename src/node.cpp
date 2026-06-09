@@ -52,31 +52,41 @@ void node::collectNodesAtLevel(int32_t targetLevel,
     }
 }
 
-void node::buildAdjacency(nodesoup::adj_list_t& graph)
+void node::buildAdjacency(nodesoup::adj_list_t& graph, std::map<int32_t, size_t>& idToIndex)
 {
     size_t currentId = getID();
 
-    if (graph.size() <= currentId)
-        graph.resize(currentId + 1);
+    // Assign index if not already assigned
+    if (idToIndex.find(currentId) == idToIndex.end())
+        idToIndex[currentId] = idToIndex.size();
+
+    size_t currentIndex = idToIndex[currentId];
 
     for (auto& child : items)
     {
-        size_t childId = child.getID();
+        int32_t childId = child.getID();
 
-        if (graph.size() <= childId)
-            graph.resize(childId + 1);
+        // Assign index if not already assigned
+        if (idToIndex.find(childId) == idToIndex.end())
+            idToIndex[childId] = idToIndex.size();
 
-        graph[currentId].push_back(childId);
-        graph[childId].push_back(currentId);
+        size_t childIndex = idToIndex[childId];
 
-        child.buildAdjacency(graph);
+        if (graph.size() <= std::max(currentIndex, childIndex))
+            graph.resize(std::max(currentIndex, childIndex) + 1);
+
+        graph[currentIndex].push_back(childIndex);
+        graph[childIndex].push_back(currentIndex);
+
+        child.buildAdjacency(graph, idToIndex);
     }
 }
 
 nodesoup::adj_list_t node::buildGraph()
 {
     nodesoup::adj_list_t graph;
-    buildAdjacency(graph);
+    std::map<int32_t, size_t> idToIndex;
+    buildAdjacency(graph, idToIndex);
     return graph;
 }
 

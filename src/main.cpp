@@ -151,7 +151,7 @@ static void adj_list_to_ppm(
 }
 
 int main() {
-	node root("Root", 0);
+	node root;
 
     root["A"].bulkPopulate(1, 5);
     root["A"].bulkPopulate(2, 8);
@@ -164,9 +164,9 @@ int main() {
 
 	root.print();
 
-    auto graph = root.buildGraph();
+    auto graph = root["A"].buildGraph();
 
-    adj_list_to_ppm(graph, "output.ppm", WIDTH, HEIGHT, 300.0, 1e-2);
+     adj_list_to_ppm(graph, "output.ppm", WIDTH, HEIGHT, 300.0, 1e-2);
 
 	//Voronoi voronoi(WIDTH, HEIGHT, SEEDS_COUNT, SEED_MARKER_RADIUS);
 	//voronoi.generate();

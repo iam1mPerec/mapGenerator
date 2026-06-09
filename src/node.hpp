@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <unordered_map>
 #include "nodesoup/nodesoup.hpp"
 
@@ -16,7 +17,7 @@ class node
 
     void printRecursive(int indent, bool isLast) const;
     void collectNodesAtLevel(int32_t targetLevel, std::vector<const node*>& result) const;
-    void buildAdjacency(nodesoup::adj_list_t& graph);
+    void buildAdjacency(nodesoup::adj_list_t& graph, std::map<int32_t, size_t>& idToIndex);
 
 
 public:
