@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include <vector>
+#include <unordered_set>
 
 
 using namespace nodesoup;
@@ -14,6 +15,7 @@ using std::string;
 using std::vector;
 using std::cout;
 using std::cerr;
+std::unordered_set<vertex_id_t> marked;
 
 constexpr auto WIDTH = 1600;
 constexpr auto HEIGHT = 1200;
@@ -116,7 +118,8 @@ static void write_to_ppm(adj_list_t& g, vector<Point2D>& positions, vector<doubl
     // Draw vertices (black = 0x000000)
     for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
         Point2D v_pos = positions[v_id];
-        draw_circle(image, (int)v_pos.x, (int)v_pos.y, (int)radiuses[v_id], width, height, 0x000000);
+        uint32_t color = marked.contains(v_id) ? 0x0000FF : 0x000000;
+        draw_circle(image, (int)v_pos.x, (int)v_pos.y, (int)radiuses[v_id], width, height, color);
     }
 
     save_image_as_ppm(filename, width, height, image);
@@ -151,22 +154,30 @@ static void adj_list_to_ppm(
 }
 
 int main() {
-	node root;
+    node root("A", 0);
+    root["C"].bulkPopulateRelative(0, 4);
+    root["D"].bulkPopulateRelative(0, 4);
+    root["E"].bulkPopulateRelative(0, 4);
 
-    root["A"].bulkPopulate(1, 5);
-    root["A"].bulkPopulate(2, 8);
-    root["A"].bulkPopulate(3, 10);
-    root["A"].bulkPopulate(4, 22);
-    root["A"].bulkPopulate(5, 32);
-    root["A"].bulkPopulate(6, 80);
+    root["B"]["F"]["F.1"].bulkPopulateRelative(0, 4);
+    root["B"]["F"]["F.1"]["F.1.2"].bulkPopulateRelative(0, 4);
+	root["B"]["F"]["F.2"]["F.2.2"].bulkPopulateRelative(0, 4);
+    root["B"]["F"]["F.2"]["F.2.3"].bulkPopulateRelative(0, 4);
 
-	std::cout << "items at Level 2: " << root.getNodesAtLevel(2).size() << std::endl;
+    root["B"]["G"]["G.1"]["G.1.2"].bulkPopulateRelative(0, 4);
+    root["B"]["G"]["G.1"]["G.1.1"].bulkPopulateRelative(0, 4);
+    root["B"]["G"]["G.2"].bulkPopulateRelative(0, 4);
 
-	root.print();
+    root["C"]["C1"].bulkPopulateRelative(0, 4);
+    root["D"]["D1"].bulkPopulateRelative(0, 4);
+    root["E"]["E1"].bulkPopulateRelative(0, 4);
+    auto graph = root.buildGraph();
 
-    auto graph = root["A"].buildGraph();
+    marked.insert(root["B"]["G"]["G.2"].getPosition());
+    marked.insert(root["B"]["G"].getPosition());
+    marked.insert(root["B"].getPosition());
 
-     adj_list_to_ppm(graph, "output.ppm", WIDTH, HEIGHT, 300.0, 1e-2);
+     adj_list_to_ppm(graph, "output.ppm", WIDTH, HEIGHT, 200.0, 1);
 
 	//Voronoi voronoi(WIDTH, HEIGHT, SEEDS_COUNT, SEED_MARKER_RADIUS);
 	//voronoi.generate();

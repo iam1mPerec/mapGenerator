@@ -32,8 +32,21 @@ int32_t node::getLvl() const
     return level;
 }
 
+int32_t node::getPosition() const
+{
+    return position;
+}
+
+node& node::connect(node& other)
+{
+    childPosition[other.getName()] = children.size();
+    children.push_back(other);
+
+    return *this;
+}
+
 void node::collectNodesAtLevel(int32_t targetLevel,
-    std::vector<const node*>& result) const
+    std::vector<node*>& result)
 {
     int32_t currentLevel = getLvl();
 
@@ -46,7 +59,7 @@ void node::collectNodesAtLevel(int32_t targetLevel,
         return;
     }
 
-    for (const auto& child : items)
+    for (auto& child : children)
     {
         child.collectNodesAtLevel(targetLevel, result);
     }
@@ -61,14 +74,15 @@ void node::buildAdjacency(nodesoup::adj_list_t& graph, std::map<int32_t, size_t>
         idToIndex[currentId] = idToIndex.size();
 
     size_t currentIndex = idToIndex[currentId];
+	position = currentIndex;
 
-    for (auto& child : items)
+    for (auto& child : children)
     {
         int32_t childId = child.getID();
 
         // Assign index if not already assigned
         if (idToIndex.find(childId) == idToIndex.end())
-            idToIndex[childId] = idToIndex.size();
+            idToIndex[childId] = idToIndex.size(); 
 
         size_t childIndex = idToIndex[childId];
 
@@ -93,11 +107,11 @@ nodesoup::adj_list_t node::buildGraph()
 void node::bulkPopulate(int32_t lvl, int count)
 {
     // Get all nodes at the target level
-    std::vector<const node*> nodesAtLevel = getNodesAtLevel(lvl);
+    std::vector<node*> nodesAtLevel = getNodesAtLevel(lvl);
 
     if (nodesAtLevel.empty())
         return;
-
+     
     // Distribute count nodes across all nodes at lvl
     int baseCount = count / nodesAtLevel.size();
     int remainder = count % nodesAtLevel.size();
@@ -118,18 +132,56 @@ void node::bulkPopulate(int32_t lvl, int count)
     }
 }
 
-std::vector<const node*> node::getNodesAtLevel(int32_t targetLevel) const
+void node::bulkPopulateRelative(int32_t offset, int count)
 {
-    std::vector<const node*> result;
+	std::cout << "offset: " << offset + getLvl() << "\n";
+    bulkPopulate(getLvl() + offset, count);
+}
+
+std::vector<node*> node::getNodesAtLevel(int32_t targetLevel)
+{
+    std::vector<node*> result;
 
     collectNodesAtLevel(targetLevel, result);
 
     return result;
 }
 
+node* node::findLeafAtLevel(int32_t targetLevel)
+{
+    if (getLvl() > targetLevel)
+        return nullptr;
+
+    if (getLvl() == targetLevel)
+        return hasChildren() ? nullptr : this;
+
+    for (auto& child : children)
+    {
+        if (node* found = child.findLeafAtLevel(targetLevel))
+            return found;
+    }
+
+    return nullptr;
+}
+
+node* node::findLeafAtLevelRelative(int32_t offset)
+{
+    return findLeafAtLevel(getLvl() + offset);
+}
+
+node* node::getItemAtRelativeLevel(int32_t offset)
+{
+    auto nodes = getNodesAtLevel(getLvl() + offset);
+
+    if (nodes.empty())
+        return nullptr;
+
+    return nodes.front();
+}
+
 const std::vector<node>& node::getChildren() const
 {
-    return items;
+    return children;
 }
 
 std::string& node::getName()
@@ -137,19 +189,37 @@ std::string& node::getName()
     return sName;
 }
 
+bool node::isConnectedToOtherTree()
+{
+    if (children.empty())
+        return false;
+
+    // Get the first letter of the first child's name
+    char firstLetterPrefix = getName()[0];
+
+    // Check if any child has a different first letter
+    for (auto& child : children)
+    {
+        if (child.getName()[0] != firstLetterPrefix)
+            return true;  // Found child from different tree
+    }
+
+    return false;
+}
+
 bool node::hasChildren() const
 {
-    return !items.empty();
+    return !children.empty();
 }
 
 node& node::operator[](const std::string& name)
 {
-    if (itemPointer.count(name) == 0)
+    if (childPosition.count(name) == 0)
     {
-        itemPointer[name] = items.size();
-        items.emplace_back(name, level + 1);
+        childPosition[name] = children.size();
+        children.emplace_back(name, level + 1);
     }
-    return items[itemPointer[name]];
+    return children[childPosition[name]];
 }
 
 void node::printRecursive(int indent, bool isLast) const
@@ -175,9 +245,9 @@ void node::printRecursive(int indent, bool isLast) const
     std::cout << '\n';
 
     // Print children
-    for (size_t i = 0; i < items.size(); ++i) {
-        bool lastChild = (i == items.size() - 1);
-        items[i].printRecursive(indent + 1, lastChild);
+    for (size_t i = 0; i < children.size(); ++i) {
+        bool lastChild = (i == children.size() - 1);
+        children[i].printRecursive(indent + 1, lastChild);
     }
 }
 
