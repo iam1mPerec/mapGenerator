@@ -7,7 +7,42 @@ Voronoi::Voronoi(int w, int h, int sc, int mr)
 {
     image.assign(height, std::vector<int>(width, color::BLACK));
     owner.assign(height, std::vector<int>(width, 0));
-    seeds.resize(seed_count);
+    //seeds.resize(seed_count);
+}
+
+void Voronoi::generate_ocean_seeds(const std::vector<Seed>& biomeSeeds, int count, double minDist)
+{
+    double minDistSq = minDist * minDist;
+    int attempts = 0;
+    int maxAttempts = count * 500; // safety valve if space is too crowded
+
+    int placed = 0;
+    while (placed < count && attempts < maxAttempts)
+    {
+        attempts++;
+        int x = rand() % width;
+        int y = rand() % height;
+
+        bool tooClose = false;
+        for (auto& bs : biomeSeeds)
+        {
+            if (sqr_dist(x, y, bs.x, bs.y) < minDistSq)
+            {
+                tooClose = true;
+                break;
+            }
+        }
+        if (tooClose)
+            continue;
+
+        Seed s;
+        s.x = x;
+        s.y = y;
+        s.type = eBiome::ocean;
+        s.influenceRadius = -1.0;
+        seeds.push_back(s);
+        placed++;
+    }
 }
 
 void Voronoi::fill_image(int color)
@@ -29,7 +64,6 @@ void Voronoi::generate_random_seeds()
     {
         seed.x = rand() % width;
         seed.y = rand() % height;
-        seed.touches_border = false;
         seed.type = eBiome::ocean;
     }
 }
@@ -55,9 +89,48 @@ void Voronoi::render_voronoi()
 
             owner[y][x] = best_seed;
             image[y][x] = palette[best_seed % palette_count];
+        }
+    }
+}
 
-            if (x == 0 || x == width - 1 || y == 0 || y == height - 1)
-                seeds[best_seed].touches_border = true;
+void Voronoi::render_voronoi_biomes()
+{
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            int best_seed = -1;
+            double best_dist = std::numeric_limits<double>::max();
+
+            for (size_t i = 0; i < seeds.size(); ++i)
+            {
+                double d = sqr_dist(seeds[i].x, seeds[i].y, x, y);
+
+                if (seeds[i].influenceRadius >= 0.0)
+                {
+                    double capSq = seeds[i].influenceRadius * seeds[i].influenceRadius;
+                    if (d > capSq)
+                        continue; // out of reach for this pixel, skip it entirely
+                }
+
+                if (d < best_dist)
+                {
+                    best_dist = d;
+                    best_seed = (int)i;
+                }
+            }
+
+            if (best_seed == -1)
+            {
+                // nothing reaches this pixel (shouldn't happen as long as ocean seeds exist)
+                owner[y][x] = -1;
+                image[y][x] = color::BLACK;
+            }
+            else
+            {
+                owner[y][x] = best_seed;
+                image[y][x] = biomeToColor(seeds[best_seed].type);
+            }
         }
     }
 }
@@ -79,15 +152,7 @@ void Voronoi::render_ocean()
         for (int x = 0; x < width; ++x)
         {
             int seed_idx = owner[y][x];
-            if (seeds[seed_idx].touches_border)
-            {
-                image[y][x] = color::AQUA;
-                seeds[seed_idx].type = eBiome::ocean;
-            }
-            else
-            {
-                seeds[seed_idx].type = getBiomeType(image[y][x]);
-            }
+            seeds[seed_idx].type = getBiomeType(image[y][x]);
         }
     }
 }
@@ -113,11 +178,16 @@ void Voronoi::render_seed_markers()
     }
 }
 
-void Voronoi::generate()
+void Voronoi::generate(const std::vector<Seed>& biomeSeeds, int oceanSeedCount, double oceanMinDistFromBiome)
 {
     srand(static_cast<unsigned>(time(nullptr)));
-    generate_random_seeds();
-    render_voronoi();
-    render_ocean();
+
+    seeds = biomeSeeds;
+    generate_ocean_seeds(biomeSeeds, oceanSeedCount, oceanMinDistFromBiome);
+
+    image.assign(height, std::vector<int>(width, color::BLACK));
+    owner.assign(height, std::vector<int>(width, -1));
+
+    render_voronoi_biomes();
     render_seed_markers();
 }

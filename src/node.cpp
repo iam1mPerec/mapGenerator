@@ -1,15 +1,13 @@
 #include <iostream>
 #include "node.hpp"
+#include "colors.hpp"
 
 int32_t node::nextID = 0;
+std::unordered_map<int32_t, node*> node::idToNode;
+std::unordered_map<int32_t, node*> node::positionToNode;
+BiomeBag node::biomeBag;
 
-node::node()
-    : sName("root")
-{
-    nID = nextID++;
-}
-
-node::node(const std::string& name, int32_t level)
+node::node(const std::string& name, int32_t level)  
     : sName(name),
     level(level)
 {
@@ -30,19 +28,6 @@ int32_t node::getID() const
 int32_t node::getLvl() const
 {
     return level;
-}
-
-int32_t node::getPosition() const
-{
-    return position;
-}
-
-node& node::connect(node& other)
-{
-    childPosition[other.getName()] = children.size();
-    children.push_back(other);
-
-    return *this;
 }
 
 void node::collectNodesAtLevel(int32_t targetLevel,
@@ -74,7 +59,7 @@ void node::buildAdjacency(nodesoup::adj_list_t& graph, std::map<int32_t, size_t>
         idToIndex[currentId] = idToIndex.size();
 
     size_t currentIndex = idToIndex[currentId];
-	position = currentIndex;
+    positionToNode[currentIndex] = this;
 
     for (auto& child : children)
     {
@@ -96,6 +81,37 @@ void node::buildAdjacency(nodesoup::adj_list_t& graph, std::map<int32_t, size_t>
     }
 }
 
+node& node::setBiome(eBiome b)
+{
+    biome = b;
+    return *this;
+}
+
+node& node::assignRandomBiome()
+{
+	setBiome(biomeBag.getRandomBiome());
+	return *this;
+}
+
+eBiome node::getBiome() const
+{
+    return biome;
+}
+
+uint32_t node::getBiomeColor() const
+{
+    switch (biome)
+    {
+        case eBiome::ocean:  return color::AQUA;  // Blue
+        case eBiome::desert: return color::YELLOW;  // Yellow
+        case eBiome::swamp:  return color::GREEN;  // Green
+        case eBiome::forest: return color::BLUE;  // Dark Green
+        case eBiome::rock:   return color::GRAY;  // Gray
+        case eBiome::ruin:   return color::PURPLE;  // Purple
+        default:             return 0x000000;  // Black
+    }
+}
+
 nodesoup::adj_list_t node::buildGraph()
 {
     nodesoup::adj_list_t graph;
@@ -104,13 +120,13 @@ nodesoup::adj_list_t node::buildGraph()
     return graph;
 }
 
-void node::bulkPopulate(int32_t lvl, int count)
+node& node::bulkPopulate(int32_t lvl, int count)
 {
     // Get all nodes at the target level
     std::vector<node*> nodesAtLevel = getNodesAtLevel(lvl);
 
     if (nodesAtLevel.empty())
-        return;
+        return *this;
      
     // Distribute count nodes across all nodes at lvl
     int baseCount = count / nodesAtLevel.size();
@@ -127,15 +143,39 @@ void node::bulkPopulate(int32_t lvl, int count)
         {
             // Create child name as parentName.childIndex
             std::string childName = mutableNode->getName() + "." + std::to_string(mutableNode->getChildren().size() + 1);
-            (*mutableNode)[childName];
+            (*mutableNode)[childName].setBiome(biome);
         }
     }
+
+    return *this;
 }
 
 void node::bulkPopulateRelative(int32_t offset, int count)
 {
 	std::cout << "offset: " << offset + getLvl() << "\n";
     bulkPopulate(getLvl() + offset, count);
+}
+
+ node* node::getNodeByID(int32_t id)
+{
+    auto it = idToNode.find(id);
+    return (it != idToNode.end()) ? it->second : nullptr;
+}
+
+node* node::getNodeByPosition(int32_t pos)
+{
+    auto it = positionToNode.find(pos);
+    return (it != positionToNode.end()) ? it->second : nullptr;
+}
+
+const std::unordered_map<int32_t, node*>& node::getIDRegistry()
+{
+    return idToNode;
+}
+
+const std::unordered_map<int32_t, node*>& node::getPositionRegistry()
+{
+    return positionToNode;
 }
 
 std::vector<node*> node::getNodesAtLevel(int32_t targetLevel)
@@ -187,24 +227,6 @@ const std::vector<node>& node::getChildren() const
 std::string& node::getName()
 {
     return sName;
-}
-
-bool node::isConnectedToOtherTree()
-{
-    if (children.empty())
-        return false;
-
-    // Get the first letter of the first child's name
-    char firstLetterPrefix = getName()[0];
-
-    // Check if any child has a different first letter
-    for (auto& child : children)
-    {
-        if (child.getName()[0] != firstLetterPrefix)
-            return true;  // Found child from different tree
-    }
-
-    return false;
 }
 
 bool node::hasChildren() const

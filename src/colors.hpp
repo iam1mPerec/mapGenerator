@@ -21,4 +21,16 @@ static Color32 palette[] = {
 	color::BLUE
 };
 
+inline uint32_t biomeToColor(eBiome b) {
+    switch (b) {
+    case eBiome::ocean:  return color::AQUA;
+    case eBiome::desert: return color::YELLOW;
+    case eBiome::swamp:  return color::GREEN;
+    case eBiome::forest: return color::BLUE;
+    case eBiome::rock:   return color::GRAY;
+    case eBiome::ruin:   return color::PURPLE;
+    default:             return color::BLACK;
+    }
+}
+
 #define palette_count (sizeof(palette)/sizeof(palette[0]))

@@ -9,12 +9,12 @@ public:
     struct Seed {
         int x = 0;
         int y = 0;
-        bool touches_border = false;
         eBiome type = eBiome::ocean;
+        double influenceRadius = -1.0; // -1 = unlimited reach (used for ocean)
     };
 
     Voronoi(int width, int height, int seedCount, int seedMarkerRadius = 5);
-    void generate();
+    void generate(const std::vector<Seed>& biomeSeeds, int oceanSeedCount, double oceanMinDistFromBiome);
     int getWidth() const { return width; }
     int getHeight() const { return height; }
     const std::vector<std::vector<int>>& getImage() const { return image; }
@@ -27,12 +27,14 @@ private:
     int seed_count;
     int seed_marker_radius;
     std::vector<std::vector<int>> image;
-    std::vector<Seed> seeds;
     std::vector<std::vector<int>> owner;
+    std::vector<Seed> seeds;
 
+    void generate_ocean_seeds(const std::vector<Seed>& biomeSeeds, int count, double minDist);
     void fill_image(int color);
     void generate_random_seeds();
     void render_voronoi();
+    void render_voronoi_biomes();
     void render_ocean();
     void render_seed_markers();
     static int sqr_dist(int x1, int y1, int x2, int y2);
