@@ -27,9 +27,6 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="eBiome.hpp">
-      <Filter>utils</Filter>
-    </ClCompile>
     <ClCompile Include="src\nodesoup\algebra.cpp">
       <Filter>nodesoup</Filter>
     </ClCompile>
@@ -50,6 +47,9 @@
     </ClCompile>
     <ClCompile Include="src\node.cpp">
       <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\biomeBag.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -78,6 +78,12 @@
       <Filter>voronoi</Filter>
     </ClInclude>
     <ClInclude Include="src\node.hpp">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\biomeBag.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\eBiome.hpp">
       <Filter>utils</Filter>
     </ClInclude>
   </ItemGroup>

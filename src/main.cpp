@@ -15,11 +15,19 @@ using std::string;
 using std::vector;
 using std::cout;
 using std::cerr;
-std::unordered_set<vertex_id_t> marked;
 
 constexpr auto WIDTH = 1600;
 constexpr auto HEIGHT = 1200;
-constexpr auto SEEDS_COUNT = 50;
+
+// Empty border kept around the node layout. The graph is laid out inside
+// (WIDTH - 2*margin) x (HEIGHT - 2*margin) but still centered on the full canvas,
+// so voronoi has room to grow biomes past the outermost nodes.
+constexpr auto LAYOUT_MARGIN = 250;
+constexpr auto LAYOUT_WIDTH = WIDTH - 2 * LAYOUT_MARGIN;
+constexpr auto LAYOUT_HEIGHT = HEIGHT - 2 * LAYOUT_MARGIN;
+
+constexpr double BIOME_INFLUENCE_RADIUS = 150.0;
+constexpr int OCEAN_SEED_COUNT = 60;
 
 constexpr auto OUTPUT_FILE_PATH = "output.ppm";
 constexpr auto SEED_MARKER_RADIUS = 5;
@@ -111,14 +119,16 @@ static void write_to_ppm(adj_list_t& g, vector<Point2D>& positions, vector<doubl
             if (adj_id < v_id) continue;
 
             Point2D adj_pos = positions[adj_id];
-            draw_line(image, (int)v_pos.x, (int)v_pos.y, (int)adj_pos.x, (int)adj_pos.y, width, height, 0x000000);
+            //draw_line(image, (int)v_pos.x, (int)v_pos.y, (int)adj_pos.x, (int)adj_pos.y, width, height, 0x000000);
         }
     }
 
     // Draw vertices (black = 0x000000)
+   // Draw vertices with biome colors
     for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
         Point2D v_pos = positions[v_id];
-        uint32_t color = marked.contains(v_id) ? 0x0000FF : 0x000000;
+        node* n = node::getNodeByPosition(v_id);
+        uint32_t color = (n != nullptr) ? n->getBiomeColor() : 0x000000;
         draw_circle(image, (int)v_pos.x, (int)v_pos.y, (int)radiuses[v_id], width, height, color);
     }
 
@@ -153,31 +163,77 @@ static void adj_list_to_ppm(
     cout << "Layout computed in " << ms << "ms\n";
 }
 
+static void write_combined_ppm(
+    adj_list_t& g,
+    vector<Point2D>& positions,
+    vector<double>& radiuses,
+    unsigned int width, unsigned int height,
+    const char* filename)
+{
+    for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
+        positions[v_id].x += width / 2.0;
+        positions[v_id].y += height / 2.0;
+    }
+
+    std::vector<Voronoi::Seed> biomeSeeds;
+    biomeSeeds.reserve(g.size());
+    for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
+        node* n = node::getNodeByPosition(v_id);
+        Voronoi::Seed s;
+        s.x = (int)positions[v_id].x;
+        s.y = (int)positions[v_id].y;
+        s.type = n ? n->getBiome() : eBiome::ocean;
+        s.influenceRadius = BIOME_INFLUENCE_RADIUS;
+        biomeSeeds.push_back(s);
+    }
+
+    Voronoi voronoi(width, height, SEED_MARKER_RADIUS);
+    voronoi.generate(biomeSeeds, OCEAN_SEED_COUNT, BIOME_INFLUENCE_RADIUS);
+    auto image = voronoi.getImage();
+
+    for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
+        for (auto adj_id : g[v_id]) {
+            if (adj_id < v_id) continue;
+            draw_line(image, (int)positions[v_id].x, (int)positions[v_id].y,
+                (int)positions[adj_id].x, (int)positions[adj_id].y,
+                width, height, 0x000000);
+        }
+    }
+
+    for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
+        node* n = node::getNodeByPosition(v_id);
+        uint32_t c = n ? n->getBiomeColor() : 0x000000;
+        draw_circle(image, (int)positions[v_id].x, (int)positions[v_id].y,
+            (int)radiuses[v_id], width, height, c);
+    }
+
+    save_image_as_ppm(filename, width, height, image);
+}
+
 int main() {
     node root("A", 0);
-    root["C"].bulkPopulateRelative(0, 4);
-    root["D"].bulkPopulateRelative(0, 4);
-    root["E"].bulkPopulateRelative(0, 4);
+	root.assignRandomBiome();
+    root["C"].assignRandomBiome().bulkPopulateRelative(0, 4);
+    root["D"].assignRandomBiome().bulkPopulateRelative(0, 4);
+    root["E"].assignRandomBiome().bulkPopulateRelative(0, 4);
 
-    root["B"]["F"]["F.1"].bulkPopulateRelative(0, 4);
-    root["B"]["F"]["F.1"]["F.1.2"].bulkPopulateRelative(0, 4);
-	root["B"]["F"]["F.2"]["F.2.2"].bulkPopulateRelative(0, 4);
-    root["B"]["F"]["F.2"]["F.2.3"].bulkPopulateRelative(0, 4);
+    root["B"].assignRandomBiome()["F"].assignRandomBiome()["F.1"].assignRandomBiome().bulkPopulateRelative(0, 4);
+    root["B"]["F"]["F.1"]["F.1.2"].assignRandomBiome().bulkPopulateRelative(0, 4);
+	root["B"]["F"]["F.2"].assignRandomBiome()["F.2.2"].assignRandomBiome().bulkPopulateRelative(0, 4);
+    root["B"]["F"]["F.2"]["F.2.3"].assignRandomBiome().bulkPopulateRelative(0, 4);
 
-    root["B"]["G"]["G.1"]["G.1.2"].bulkPopulateRelative(0, 4);
-    root["B"]["G"]["G.1"]["G.1.1"].bulkPopulateRelative(0, 4);
-    root["B"]["G"]["G.2"].bulkPopulateRelative(0, 4);
+    root["B"]["G"].assignRandomBiome()["G.1"]["G.1.2"].assignRandomBiome().bulkPopulateRelative(0, 4);
+    root["B"]["G"]["G.1"].assignRandomBiome()["G.1.1"].assignRandomBiome().bulkPopulateRelative(0, 4);
+    root["B"]["G"]["G.2"].assignRandomBiome().bulkPopulateRelative(0, 4);
 
-    root["C"]["C1"].bulkPopulateRelative(0, 4);
-    root["D"]["D1"].bulkPopulateRelative(0, 4);
-    root["E"]["E1"].bulkPopulateRelative(0, 4);
+    root["C"]["C1"].assignRandomBiome().bulkPopulateRelative(0, 4);
+    root["D"]["D1"].assignRandomBiome().bulkPopulateRelative(0, 4);
+    root["E"]["E1"].assignRandomBiome().bulkPopulateRelative(0, 4);
     auto graph = root.buildGraph();
 
-    marked.insert(root["B"]["G"]["G.2"].getPosition());
-    marked.insert(root["B"]["G"].getPosition());
-    marked.insert(root["B"].getPosition());
-
-     adj_list_to_ppm(graph, "output.ppm", WIDTH, HEIGHT, 200.0, 1);
+    vector<double> radiuses = size_radiuses(graph);
+    vector<Point2D> positions = kamada_kawai(graph, LAYOUT_WIDTH, LAYOUT_HEIGHT, 200.0, 1);
+    write_combined_ppm(graph, positions, radiuses, WIDTH, HEIGHT, "output.ppm");
 
 	//Voronoi voronoi(WIDTH, HEIGHT, SEEDS_COUNT, SEED_MARKER_RADIUS);
 	//voronoi.generate();
