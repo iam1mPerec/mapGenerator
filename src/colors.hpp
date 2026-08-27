@@ -9,6 +9,7 @@ namespace color {
     constexpr uint32_t BLUE = 0xFF98A583;
     constexpr uint32_t PURPLE = 0xFF9B86D3;
     constexpr uint32_t AQUA = 0xFFDCDC8D;
+    constexpr uint32_t RED = 0xFF0000FF;
     constexpr uint32_t BLACK = 0xFF000000;
     constexpr uint32_t COLOR_WHITE = 0xFFFFFFFF;
 }
