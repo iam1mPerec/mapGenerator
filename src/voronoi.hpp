@@ -21,6 +21,7 @@ public:
     const std::vector<std::vector<int>>& getImage() const { return image; }
     const std::vector<std::vector<int>>& getOwner() const { return owner; }
     const std::vector<Seed>& getSeeds() const { return seeds; }
+    const std::vector<std::pair<int, int>>& getLandLandOceanJunctions() const { return junctions; }
 
 private:
     int height;
@@ -30,6 +31,7 @@ private:
     std::vector<std::vector<int>> image;
     std::vector<std::vector<int>> owner;
     std::vector<Seed> seeds;
+    std::vector<std::pair<int, int>> junctions; // points where 2 land biomes and ocean all meet
 
     void generate_ocean_seeds(const std::vector<Seed>& biomeSeeds, int count, double minDist);
     void fill_image(int color);
@@ -39,6 +41,8 @@ private:
     void render_ocean();
     void render_seed_markers();
     void apply_coastal_noise(uint32_t noiseSeed, int coastBand = 14, double noiseFreq = 0.05);
+    std::vector<std::pair<int, int>> detect_land_land_ocean_junctions() const;
+    void render_junction_markers(int markerRadius = 2);
     static int sqr_dist(int x1, int y1, int x2, int y2);
     static eBiome getBiomeType(int color);
 };

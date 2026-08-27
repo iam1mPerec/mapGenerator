@@ -1,5 +1,6 @@
 #include <time.h>
 #include <queue>
+#include <unordered_set>
 #include "voronoi.hpp"
 #include "colors.hpp"
 #include "noise.hpp"
@@ -161,6 +162,18 @@ void Voronoi::render_ocean()
 
 void Voronoi::apply_coastal_noise(uint32_t noiseSeed, int coastBand, double noiseFreq)
 {
+    // Any ocean seed works as the owner to reassign eroded pixels to - we
+    // only need seeds[...].type to read back as ocean for them afterwards.
+    int oceanSeedIdx = -1;
+    for (size_t i = 0; i < seeds.size(); ++i)
+    {
+        if (seeds[i].type == eBiome::ocean)
+        {
+            oceanSeedIdx = static_cast<int>(i);
+            break;
+        }
+    }
+
     // Multi-source BFS distance-from-ocean transform, capped at coastBand,
     // so we only touch pixels near a shoreline instead of scanning the whole map.
     std::vector<std::vector<int>> dist(height, std::vector<int>(width, -1));
@@ -221,7 +234,76 @@ void Voronoi::apply_coastal_noise(uint32_t noiseSeed, int coastBand, double nois
             double edge = static_cast<double>(d) / coastBand; // 0 at shore, 1 at band limit
 
             if (n > edge)
+            {
                 image[y][x] = color::AQUA;
+                if (oceanSeedIdx >= 0)
+                    owner[y][x] = oceanSeedIdx; // so downstream logic (e.g. junction detection) sees the real, eroded coastline
+            }
+        }
+    }
+}
+
+std::vector<std::pair<int, int>> Voronoi::detect_land_land_ocean_junctions() const
+{
+    // For every ocean cell, look only at its 8 direct neighbours. If those
+    // neighbours cover 2 or more distinct land biome types, this ocean cell
+    // sits right where two different biomes meet the ocean - mark it.
+    static const int dx8[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+    static const int dy8[8] = { -1, -1, -1, 0, 0, 1, 1, 1 };
+
+    std::vector<std::pair<int, int>> result;
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            if (owner[y][x] < 0 || seeds[owner[y][x]].type != eBiome::ocean)
+                continue; // only considering ocean cells
+
+            std::unordered_set<eBiome> landTypes;
+
+            for (int i = 0; i < 8; ++i)
+            {
+                int nx = x + dx8[i];
+                int ny = y + dy8[i];
+
+                if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+                    continue;
+
+                int o = owner[ny][nx];
+                if (o < 0 || seeds[o].type == eBiome::ocean)
+                    continue;
+
+                landTypes.insert(seeds[o].type);
+            }
+
+            if (landTypes.size() >= 2)
+                result.push_back({ x, y });
+        }
+    }
+
+    return result;
+}
+
+void Voronoi::render_junction_markers(int markerRadius)
+{
+    junctions = detect_land_land_ocean_junctions();
+
+    for (const auto& [jx, jy] : junctions)
+    {
+        for (int dy = -markerRadius; dy <= markerRadius; ++dy)
+        {
+            for (int dx = -markerRadius; dx <= markerRadius; ++dx)
+            {
+                if (dx * dx + dy * dy > markerRadius * markerRadius)
+                    continue;
+
+                int px = jx + dx;
+                int py = jy + dy;
+
+                if (px >= 0 && px < width && py >= 0 && py < height)
+                    image[py][px] = color::RED;
+            }
         }
     }
 }
@@ -260,4 +342,5 @@ void Voronoi::generate(const std::vector<Seed>& biomeSeeds, int oceanSeedCount, 
     render_voronoi_biomes();
     apply_coastal_noise((static_cast<uint32_t>(rand()) << 16) ^ static_cast<uint32_t>(rand()));
     render_seed_markers();
+    render_junction_markers();
 }
