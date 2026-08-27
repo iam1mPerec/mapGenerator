@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <vector>
+#include <cstdint>
 #include "eBiome.hpp"
 
 class Voronoi {
@@ -37,6 +38,7 @@ private:
     void render_voronoi_biomes();
     void render_ocean();
     void render_seed_markers();
+    void apply_coastal_noise(uint32_t noiseSeed, int coastBand = 14, double noiseFreq = 0.05);
     static int sqr_dist(int x1, int y1, int x2, int y2);
     static eBiome getBiomeType(int color);
 };

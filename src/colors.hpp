@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace color {
     constexpr uint32_t GRAY = 0xFF181818;
     constexpr uint32_t GREEN = 0xFF26BBB8;
