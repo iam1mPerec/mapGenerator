@@ -16,8 +16,8 @@ using std::vector;
 using std::cout;
 using std::cerr;
 
-constexpr auto WIDTH = 1600;
-constexpr auto HEIGHT = 1200;
+constexpr auto WIDTH = 3200;
+constexpr auto HEIGHT = 2400;
 
 // Empty border kept around the node layout. The graph is laid out inside
 // (WIDTH - 2*margin) x (HEIGHT - 2*margin) but still centered on the full canvas,

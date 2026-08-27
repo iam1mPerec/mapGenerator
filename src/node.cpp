@@ -152,7 +152,6 @@ node& node::bulkPopulate(int32_t lvl, int count)
 
 void node::bulkPopulateRelative(int32_t offset, int count)
 {
-	std::cout << "offset: " << offset + getLvl() << "\n";
     bulkPopulate(getLvl() + offset, count);
 }
 

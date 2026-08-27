@@ -1,6 +1,8 @@
 #include <time.h>
+#include <queue>
 #include "voronoi.hpp"
 #include "colors.hpp"
+#include "noise.hpp"
 
 Voronoi::Voronoi(int w, int h, int sc, int mr)
     : width(w), height(h), seed_count(sc), seed_marker_radius(mr)
@@ -157,6 +159,73 @@ void Voronoi::render_ocean()
     }
 }
 
+void Voronoi::apply_coastal_noise(uint32_t noiseSeed, int coastBand, double noiseFreq)
+{
+    // Multi-source BFS distance-from-ocean transform, capped at coastBand,
+    // so we only touch pixels near a shoreline instead of scanning the whole map.
+    std::vector<std::vector<int>> dist(height, std::vector<int>(width, -1));
+    std::queue<std::pair<int, int>> frontier;
+
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            if (owner[y][x] >= 0 && seeds[owner[y][x]].type == eBiome::ocean)
+            {
+                dist[y][x] = 0;
+                frontier.push({ x, y });
+            }
+        }
+    }
+
+    static const int dx[4] = { 1, -1, 0, 0 };
+    static const int dy[4] = { 0, 0, 1, -1 };
+
+    while (!frontier.empty())
+    {
+        auto [x, y] = frontier.front();
+        frontier.pop();
+
+        int d = dist[y][x];
+        if (d >= coastBand)
+            continue;
+
+        for (int i = 0; i < 4; ++i)
+        {
+            int nx = x + dx[i];
+            int ny = y + dy[i];
+
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+                continue;
+            if (dist[ny][nx] != -1)
+                continue;
+
+            dist[ny][nx] = d + 1;
+            frontier.push({ nx, ny });
+        }
+    }
+
+    // Erode land pixels inside the coastal band using fbm noise, so the
+    // shoreline gets ragged detail instead of voronoi's smooth cell edges.
+    // Pixels closer to the true boundary are more likely to erode than
+    // pixels near the far edge of the band.
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            int d = dist[y][x];
+            if (d <= 0 || d > coastBand)
+                continue; // ocean itself, or too far inland to matter
+
+            double n = (noise::fbm(x * noiseFreq, y * noiseFreq, noiseSeed, 4) + 1.0) * 0.5; // [0,1]
+            double edge = static_cast<double>(d) / coastBand; // 0 at shore, 1 at band limit
+
+            if (n > edge)
+                image[y][x] = color::AQUA;
+        }
+    }
+}
+
 void Voronoi::render_seed_markers()
 {
     for (const auto& seed : seeds)
@@ -189,5 +258,6 @@ void Voronoi::generate(const std::vector<Seed>& biomeSeeds, int oceanSeedCount, 
     owner.assign(height, std::vector<int>(width, -1));
 
     render_voronoi_biomes();
+    apply_coastal_noise((static_cast<uint32_t>(rand()) << 16) ^ static_cast<uint32_t>(rand()));
     render_seed_markers();
 }
