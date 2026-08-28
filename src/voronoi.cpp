@@ -243,7 +243,7 @@ void Voronoi::apply_coastal_noise(uint32_t noiseSeed, int coastBand, double nois
     }
 }
 
-std::vector<std::pair<int, int>> Voronoi::detect_land_land_ocean_junctions() const
+std::vector<std::pair<int, int>> Voronoi::detect_land_to_ocean_junctions() const
 {
     // For every ocean cell, look only at its 8 direct neighbours. If those
     // neighbours cover 2 or more distinct land biome types, this ocean cell
@@ -301,24 +301,151 @@ bool Voronoi::near_branch_node(int x, int y) const
     return false;
 }
 
-void Voronoi::render_junction_markers(int markerRadius)
+std::vector<std::tuple<int, int, int>> Voronoi::trace_land_land_seams() const
 {
-    junctions = detect_land_land_ocean_junctions();
+    // Grow the crack inland from each ocean/land/land junction: walk the
+    // land pixels that themselves sit on a land-land border (i.e. an 8-neighbour
+    // belongs to a different land biome), stopping a branch as soon as it
+    // stops being a border pixel or comes near a node with children. Each
+    // point is tagged with its hop-distance from the junction it grew from,
+    // so callers can taper the crack (thick near the coast, thin inland).
+    static const int dx8[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+    static const int dy8[8] = { -1, -1, -1, 0, 0, 1, 1, 1 };
+
+    auto otherLandTypesTouching = [&](int x, int y, eBiome mine)
+    {
+        std::unordered_set<eBiome> types;
+        for (int i = 0; i < 8; ++i)
+        {
+            int nx = x + dx8[i];
+            int ny = y + dy8[i];
+
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+                continue;
+
+            int o = owner[ny][nx];
+            if (o < 0 || seeds[o].type == eBiome::ocean || seeds[o].type == mine)
+                continue;
+
+            types.insert(seeds[o].type);
+        }
+        return types;
+    };
+
+    std::vector<std::tuple<int, int, int>> result;
+    std::vector<std::vector<int>> hop(height, std::vector<int>(width, -1));
+    std::queue<std::pair<int, int>> frontier;
 
     for (const auto& [jx, jy] : junctions)
     {
-        for (int dy = -markerRadius; dy <= markerRadius; ++dy)
+        for (int i = 0; i < 8; ++i)
         {
-            for (int dx = -markerRadius; dx <= markerRadius; ++dx)
+            int nx = jx + dx8[i];
+            int ny = jy + dy8[i];
+
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+                continue;
+
+            int o = owner[ny][nx];
+            if (o < 0 || seeds[o].type == eBiome::ocean || hop[ny][nx] != -1)
+                continue;
+
+            hop[ny][nx] = 0;
+            frontier.push({ nx, ny });
+        }
+    }
+
+    while (!frontier.empty())
+    {
+        auto [x, y] = frontier.front();
+        frontier.pop();
+
+        if (near_branch_node(x, y))
+            continue; // keep the seam away from nodes that have children
+
+        eBiome myType = seeds[owner[y][x]].type;
+        if (otherLandTypesTouching(x, y, myType).empty())
+            continue; // not on a land-land border (any more) - stop this branch
+
+        result.push_back({ x, y, hop[y][x] });
+
+        for (int i = 0; i < 8; ++i)
+        {
+            int nx = x + dx8[i];
+            int ny = y + dy8[i];
+
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+                continue;
+
+            int o = owner[ny][nx];
+            if (o < 0 || seeds[o].type == eBiome::ocean || hop[ny][nx] != -1)
+                continue;
+
+            hop[ny][nx] = hop[y][x] + 1;
+            frontier.push({ nx, ny });
+        }
+    }
+
+    return result;
+}
+
+void Voronoi::carve_seam_ocean(uint32_t noiseSeed, int seamBandNear, int seamBandFar, int taperLength, double noiseFreq)
+{
+    auto traced = trace_land_land_seams();
+
+    seams.clear();
+    seams.reserve(traced.size());
+    for (const auto& [sx, sy, hopDist] : traced)
+        seams.push_back({ sx, sy });
+
+    if (traced.empty())
+        return;
+
+    int oceanSeedIdx = -1;
+    for (size_t i = 0; i < seeds.size(); ++i)
+    {
+        if (seeds[i].type == eBiome::ocean)
+        {
+            oceanSeedIdx = static_cast<int>(i);
+            break;
+        }
+    }
+    if (oceanSeedIdx < 0)
+        return;
+
+    // Stamp a noisy disc around every seam point instead of a uniform band,
+    // so the crack can taper: wide right at the junction (hopDist 0), shrinking
+    // down to seamBandFar by the time it has travelled taperLength pixels inland.
+    for (const auto& [sx, sy, hopDist] : traced)
+    {
+        double t = taperLength > 0 ? std::min(1.0, static_cast<double>(hopDist) / taperLength) : 1.0;
+        double bandF = seamBandNear + (seamBandFar - seamBandNear) * t;
+        int band = std::max(1, static_cast<int>(std::lround(bandF)));
+
+        for (int dy = -band; dy <= band; ++dy)
+        {
+            for (int dx = -band; dx <= band; ++dx)
             {
-                if (dx * dx + dy * dy > markerRadius * markerRadius)
+                double d = std::sqrt(static_cast<double>(dx * dx + dy * dy));
+                if (d > band)
                     continue;
 
-                int px = jx + dx;
-                int py = jy + dy;
+                int px = sx + dx;
+                int py = sy + dy;
 
-                if (px >= 0 && px < width && py >= 0 && py < height)
-                    image[py][px] = color::RED;
+                if (px < 0 || px >= width || py < 0 || py >= height)
+                    continue;
+                if (owner[py][px] < 0 || seeds[owner[py][px]].type == eBiome::ocean)
+                    continue; // already water
+
+                double n = (noise::fbm(px * noiseFreq, py * noiseFreq, noiseSeed, 4) + 1.0) * 0.5; // [0,1]
+                double edge = d / band; // 0 at the seam centerline, 1 at this point's band limit
+
+                if (d < 1.0 || n > edge)
+                {
+                    image[py][px] = color::AQUA;
+                    owner[py][px] = oceanSeedIdx;
+                }
             }
         }
     }
@@ -357,6 +484,7 @@ void Voronoi::generate(const std::vector<Seed>& biomeSeeds, int oceanSeedCount, 
 
     render_voronoi_biomes();
     apply_coastal_noise((static_cast<uint32_t>(rand()) << 16) ^ static_cast<uint32_t>(rand()));
-    render_seed_markers();
-    render_junction_markers();
+    //render_seed_markers();
+    junctions = detect_land_to_ocean_junctions(); // algorithm-only, not drawn
+    carve_seam_ocean((static_cast<uint32_t>(rand()) << 16) ^ static_cast<uint32_t>(rand()));
 }
