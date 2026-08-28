@@ -243,42 +243,96 @@ void Voronoi::apply_coastal_noise(uint32_t noiseSeed, int coastBand, double nois
     }
 }
 
-std::vector<std::pair<int, int>> Voronoi::detect_land_land_ocean_junctions() const
+bool Voronoi::is_junction_pixel(int x, int y) const
 {
-    // For every ocean cell, look only at its 8 direct neighbours. If those
-    // neighbours cover 2 or more distinct land biome types, this ocean cell
-    // sits right where two different biomes meet the ocean - mark it.
+    // True if (x,y) is an ocean cell whose 8 direct neighbours cover 2 or
+    // more distinct land biome types - i.e. it sits right where two
+    // different biomes meet the ocean - and it isn't close enough to a
+    // branch node (a nodesoup node with siblings) for that to be expected.
     static const int dx8[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
     static const int dy8[8] = { -1, -1, -1, 0, 0, 1, 1, 1 };
 
+    if (owner[y][x] < 0 || seeds[owner[y][x]].type != eBiome::ocean)
+        return false; // only considering ocean cells
+
+    std::unordered_set<eBiome> landTypes;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        int nx = x + dx8[i];
+        int ny = y + dy8[i];
+
+        if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+            continue;
+
+        int o = owner[ny][nx];
+        if (o < 0 || seeds[o].type == eBiome::ocean)
+            continue;
+
+        landTypes.insert(seeds[o].type);
+    }
+
+    return landTypes.size() >= 2 && !near_branch_node(x, y);
+}
+
+void Voronoi::trace_junction_component(int startX, int startY, std::vector<std::vector<bool>>& visited, std::vector<std::pair<int, int>>& result) const
+{
+    // Walk outward from a known junction pixel: keep visiting any
+    // unvisited 8-neighbour that is also a junction pixel (same radius-1
+    // test as the origin scan), marking it as we go. A branch of the walk
+    // stops on its own once it runs out of such neighbours.
+    static const int dx8[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+    static const int dy8[8] = { -1, -1, -1, 0, 0, 1, 1, 1 };
+
+    std::queue<std::pair<int, int>> frontier;
+    frontier.push({ startX, startY });
+    result.push_back({ startX, startY });
+
+    while (!frontier.empty())
+    {
+        auto [x, y] = frontier.front();
+        frontier.pop();
+
+        for (int i = 0; i < 8; ++i)
+        {
+            int nx = x + dx8[i];
+            int ny = y + dy8[i];
+
+            if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+                continue;
+            if (visited[ny][nx])
+                continue;
+
+            visited[ny][nx] = true;
+
+            if (is_junction_pixel(nx, ny))
+            {
+                result.push_back({ nx, ny });
+                frontier.push({ nx, ny });
+            }
+        }
+    }
+}
+
+std::vector<std::pair<int, int>> Voronoi::detect_land_land_ocean_junctions() const
+{
+    // Scan for the first pixel of each still-unvisited crack, then walk
+    // outward from it via trace_junction_component so every further dot
+    // is placed by following neighbours rather than testing independently.
+    std::vector<std::vector<bool>> visited(height, std::vector<bool>(width, false));
     std::vector<std::pair<int, int>> result;
 
     for (int y = 0; y < height; ++y)
     {
         for (int x = 0; x < width; ++x)
         {
-            if (owner[y][x] < 0 || seeds[owner[y][x]].type != eBiome::ocean)
-                continue; // only considering ocean cells
+            if (visited[y][x])
+                continue;
 
-            std::unordered_set<eBiome> landTypes;
+            visited[y][x] = true;
 
-            for (int i = 0; i < 8; ++i)
-            {
-                int nx = x + dx8[i];
-                int ny = y + dy8[i];
-
-                if (nx < 0 || nx >= width || ny < 0 || ny >= height)
-                    continue;
-
-                int o = owner[ny][nx];
-                if (o < 0 || seeds[o].type == eBiome::ocean)
-                    continue;
-
-                landTypes.insert(seeds[o].type);
-            }
-
-            if (landTypes.size() >= 2 && !near_branch_node(x, y))
-                result.push_back({ x, y });
+            if (is_junction_pixel(x, y))
+                trace_junction_component(x, y, visited, result);
         }
     }
 
