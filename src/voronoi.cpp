@@ -277,12 +277,28 @@ std::vector<std::pair<int, int>> Voronoi::detect_land_land_ocean_junctions() con
                 landTypes.insert(seeds[o].type);
             }
 
-            if (landTypes.size() >= 2)
+            if (landTypes.size() >= 2 && !near_branch_node(x, y))
                 result.push_back({ x, y });
         }
     }
 
     return result;
+}
+
+bool Voronoi::near_branch_node(int x, int y) const
+{
+    // A "branch node" is a nodesoup node with children - its seed's own
+    // influence radius defines how close counts as "near" it.
+    for (const auto& s : seeds)
+    {
+        if (!s.hasChildren || s.influenceRadius < 0.0)
+            continue;
+
+        if (sqr_dist(x, y, s.x, s.y) <= s.influenceRadius * s.influenceRadius)
+            return true;
+    }
+
+    return false;
 }
 
 void Voronoi::render_junction_markers(int markerRadius)

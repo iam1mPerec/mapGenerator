@@ -184,6 +184,7 @@ static void write_combined_ppm(
         s.y = (int)positions[v_id].y;
         s.type = n ? n->getBiome() : eBiome::ocean;
         s.influenceRadius = BIOME_INFLUENCE_RADIUS;
+        s.hasChildren = n ? n->hasChildren() : false;
         biomeSeeds.push_back(s);
     }
 
