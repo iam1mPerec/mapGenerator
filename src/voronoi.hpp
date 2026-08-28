@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <vector>
+#include <tuple>
 #include <cstdint>
 #include "eBiome.hpp"
 
@@ -23,6 +24,7 @@ public:
     const std::vector<std::vector<int>>& getOwner() const { return owner; }
     const std::vector<Seed>& getSeeds() const { return seeds; }
     const std::vector<std::pair<int, int>>& getLandLandOceanJunctions() const { return junctions; }
+    const std::vector<std::pair<int, int>>& getLandLandSeams() const { return seams; }
 
 private:
     int height;
@@ -33,6 +35,7 @@ private:
     std::vector<std::vector<int>> owner;
     std::vector<Seed> seeds;
     std::vector<std::pair<int, int>> junctions; // points where 2 land biomes and ocean all meet
+    std::vector<std::pair<int, int>> seams; // inland crack points along a land-land biome border
 
     void generate_ocean_seeds(const std::vector<Seed>& biomeSeeds, int count, double minDist);
     void fill_image(int color);
@@ -42,9 +45,10 @@ private:
     void render_ocean();
     void render_seed_markers();
     void apply_coastal_noise(uint32_t noiseSeed, int coastBand = 14, double noiseFreq = 0.05);
-    std::vector<std::pair<int, int>> detect_land_land_ocean_junctions() const;
+    std::vector<std::pair<int, int>> detect_land_to_ocean_junctions() const;
     bool near_branch_node(int x, int y) const;
-    void render_junction_markers(int markerRadius = 2);
+    std::vector<std::tuple<int, int, int>> trace_land_land_seams() const; // (x, y, hop-distance from nearest junction)
+    void carve_seam_ocean(uint32_t noiseSeed, int seamBandNear = 15, int seamBandFar = 20, int taperLength = 200, double noiseFreq = 0.08);
     static int sqr_dist(int x1, int y1, int x2, int y2);
     static eBiome getBiomeType(int color);
 };

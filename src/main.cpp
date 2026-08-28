@@ -16,18 +16,18 @@ using std::vector;
 using std::cout;
 using std::cerr;
 
-constexpr auto WIDTH = 3200;
-constexpr auto HEIGHT = 2400;
+constexpr auto WIDTH = 1600;
+constexpr auto HEIGHT = 1200;
 
 // Empty border kept around the node layout. The graph is laid out inside
 // (WIDTH - 2*margin) x (HEIGHT - 2*margin) but still centered on the full canvas,
 // so voronoi has room to grow biomes past the outermost nodes.
-constexpr auto LAYOUT_MARGIN = 250;
+constexpr auto LAYOUT_MARGIN = 125;
 constexpr auto LAYOUT_WIDTH = WIDTH - 2 * LAYOUT_MARGIN;
 constexpr auto LAYOUT_HEIGHT = HEIGHT - 2 * LAYOUT_MARGIN;
 
-constexpr double BIOME_INFLUENCE_RADIUS = 150.0;
-constexpr int OCEAN_SEED_COUNT = 60;
+constexpr double BIOME_INFLUENCE_RADIUS = 75.0;
+constexpr int OCEAN_SEED_COUNT = 30;
 
 constexpr auto OUTPUT_FILE_PATH = "output.ppm";
 constexpr auto SEED_MARKER_RADIUS = 5;
@@ -129,7 +129,7 @@ static void write_to_ppm(adj_list_t& g, vector<Point2D>& positions, vector<doubl
         Point2D v_pos = positions[v_id];
         node* n = node::getNodeByPosition(v_id);
         uint32_t color = (n != nullptr) ? n->getBiomeColor() : 0x000000;
-        draw_circle(image, (int)v_pos.x, (int)v_pos.y, (int)radiuses[v_id], width, height, color);
+        //draw_circle(image, (int)v_pos.x, (int)v_pos.y, (int)radiuses[v_id], width, height, color);
     }
 
     save_image_as_ppm(filename, width, height, image);
@@ -192,21 +192,21 @@ static void write_combined_ppm(
     voronoi.generate(biomeSeeds, OCEAN_SEED_COUNT, BIOME_INFLUENCE_RADIUS);
     auto image = voronoi.getImage();
 
-    for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
-        for (auto adj_id : g[v_id]) {
-            if (adj_id < v_id) continue;
-            draw_line(image, (int)positions[v_id].x, (int)positions[v_id].y,
-                (int)positions[adj_id].x, (int)positions[adj_id].y,
-                width, height, 0x000000);
-        }
-    }
+    //for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
+    //    for (auto adj_id : g[v_id]) {
+    //        if (adj_id < v_id) continue;
+    //        draw_line(image, (int)positions[v_id].x, (int)positions[v_id].y,
+    //            (int)positions[adj_id].x, (int)positions[adj_id].y,
+    //            width, height, 0x000000);
+    //    }
+    //}
 
-    for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
-        node* n = node::getNodeByPosition(v_id);
-        uint32_t c = n ? n->getBiomeColor() : 0x000000;
-        draw_circle(image, (int)positions[v_id].x, (int)positions[v_id].y,
-            (int)radiuses[v_id], width, height, c);
-    }
+    //for (vertex_id_t v_id = 0; v_id < g.size(); v_id++) {
+    //    node* n = node::getNodeByPosition(v_id);
+    //    uint32_t c = n ? n->getBiomeColor() : 0x000000;
+    //    draw_circle(image, (int)positions[v_id].x, (int)positions[v_id].y,
+    //        (int)radiuses[v_id], width, height, c);
+    //}
 
     save_image_as_ppm(filename, width, height, image);
 }
