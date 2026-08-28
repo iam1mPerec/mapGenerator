@@ -438,7 +438,7 @@ void Voronoi::carve_seam_ocean(uint32_t noiseSeed, int seamBandNear, int seamBan
                 if (owner[py][px] < 0 || seeds[owner[py][px]].type == eBiome::ocean)
                     continue; // already water
 
-                double n = (noise::fbm(px * noiseFreq, py * noiseFreq, noiseSeed, 4) + 1.0) * 0.5; // [0,1]
+                double n = (noise::fbm(px * noiseFreq, py * noiseFreq, noiseSeed, 2) + 1.0) * 0.5; // [0,1] - low octave count keeps the edge gently wavy instead of spiky
                 double edge = d / band; // 0 at the seam centerline, 1 at this point's band limit
 
                 if (d < 1.0 || n > edge)
