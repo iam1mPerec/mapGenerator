@@ -12,6 +12,7 @@ public:
         int y = 0;
         eBiome type = eBiome::ocean;
         double influenceRadius = -1.0; // -1 = unlimited reach (used for ocean)
+        bool hasChildren = false; // true if this seed comes from a nodesoup node with children
     };
 
     Voronoi(int width, int height, int seedCount, int seedMarkerRadius = 5);
@@ -42,6 +43,7 @@ private:
     void render_seed_markers();
     void apply_coastal_noise(uint32_t noiseSeed, int coastBand = 14, double noiseFreq = 0.05);
     std::vector<std::pair<int, int>> detect_land_land_ocean_junctions() const;
+    bool near_branch_node(int x, int y) const;
     void render_junction_markers(int markerRadius = 2);
     static int sqr_dist(int x1, int y1, int x2, int y2);
     static eBiome getBiomeType(int color);
