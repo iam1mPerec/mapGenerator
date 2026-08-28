@@ -48,7 +48,7 @@ private:
     std::vector<std::pair<int, int>> detect_land_to_ocean_junctions() const;
     bool near_branch_node(int x, int y) const;
     std::vector<std::tuple<int, int, int>> trace_land_land_seams() const; // (x, y, hop-distance from nearest junction)
-    void carve_seam_ocean(uint32_t noiseSeed, int seamBandNear = 15, int seamBandFar = 20, int taperLength = 200, double noiseFreq = 0.08);
+    void carve_seam_ocean(uint32_t noiseSeed, int seamBandNear = 15, int seamBandFar = 20, int taperLength = 200, double noiseFreq = 0.035);
     static int sqr_dist(int x1, int y1, int x2, int y2);
     static eBiome getBiomeType(int color);
 };
