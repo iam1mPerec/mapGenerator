@@ -130,6 +130,7 @@
   <ItemGroup>
     <ClCompile Include="src\biomeBag.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\mapRenderer.cpp" />
     <ClCompile Include="src\node.cpp" />
     <ClCompile Include="src\nodesoup\algebra.cpp" />
     <ClCompile Include="src\nodesoup\fruchterman_reingold.cpp" />
@@ -145,6 +146,7 @@
     <ClInclude Include="src\biomeBag.hpp" />
     <ClInclude Include="src\colors.hpp" />
     <ClInclude Include="src\eBiome.hpp" />
+    <ClInclude Include="src\mapRenderer.hpp" />
     <ClInclude Include="src\node.hpp" />
     <ClInclude Include="src\nodesoup\algebra.hpp" />
     <ClInclude Include="src\nodesoup\fruchterman_reingold.hpp" />
