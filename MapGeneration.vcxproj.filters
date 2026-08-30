@@ -51,6 +51,9 @@
     <ClCompile Include="src\biomeBag.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\mapRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
@@ -85,6 +88,9 @@
     </ClInclude>
     <ClInclude Include="src\eBiome.hpp">
       <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mapRenderer.hpp">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

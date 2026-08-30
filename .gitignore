@@ -25,6 +25,7 @@ out/
 *.lib
 *.exp
 *.ppm
+*.cache
 
 # CMake
 CMakeFiles/
